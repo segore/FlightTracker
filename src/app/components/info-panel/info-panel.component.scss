@@ -1,0 +1,207 @@
+.info-panel {
+  padding: 16px;
+  font-family: inherit;
+
+  &.empty {
+    text-align: center;
+    color: #94a3b8;
+    padding: 24px;
+  }
+
+  .panel-header {
+    margin-bottom: 16px;
+
+    .flight-info {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 8px;
+
+      .flight-number {
+        font-size: 22px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      .airline {
+        font-size: 13px;
+        color: #64748b;
+      }
+    }
+
+    .route-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+
+      .airport-code {
+        font-weight: 700;
+        color: #334155;
+        font-size: 16px;
+      }
+
+      .route-line {
+        color: #cbd5e1;
+        font-size: 12px;
+        letter-spacing: -2px;
+      }
+    }
+  }
+
+  .progress-bar-container {
+    position: relative;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    overflow: hidden;
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #06b6d4);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    .progress-label {
+      position: absolute;
+      right: 0;
+      top: -18px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #3b82f6;
+    }
+  }
+
+  .data-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+
+    .data-item {
+      .data-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 500;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+      }
+
+      .data-value {
+        display: block;
+        font-size: 16px;
+        font-weight: 700;
+        color: #1e293b;
+
+        &.up {
+          color: #16a34a;
+        }
+
+        &.down {
+          color: #dc2626;
+        }
+
+        &.level {
+          color: #64748b;
+        }
+
+        &.small {
+          font-size: 13px;
+        }
+      }
+
+      .data-sub {
+        display: block;
+        font-size: 11px;
+        color: #94a3b8;
+      }
+    }
+  }
+
+  .update-info {
+    font-size: 11px;
+    color: #94a3b8;
+    text-align: right;
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .ocean-notice,
+  .planned-notice,
+  .landed-notice,
+  .nodata-notice {
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 10px;
+    align-items: flex-start;
+
+    .notice-icon {
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .notice-text {
+      strong {
+        display: block;
+        font-size: 15px;
+        margin-bottom: 4px;
+        color: #0f172a;
+      }
+
+      p {
+        margin: 0;
+        font-size: 13px;
+        color: #475569;
+        line-height: 1.4;
+      }
+
+      .last-data,
+      .distance-info {
+        margin-top: 6px;
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 500;
+      }
+    }
+  }
+
+  .ocean-notice {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+  }
+
+  .planned-notice {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+  }
+
+  .landed-notice {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+  }
+
+  .nodata-notice {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+  }
+}
+
+@media (max-width: 768px) {
+  .info-panel {
+    padding: 12px;
+
+    .data-grid {
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+
+      .data-item .data-value {
+        font-size: 14px;
+      }
+    }
+  }
+}

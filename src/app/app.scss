@@ -1,0 +1,196 @@
+:host {
+  display: block;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f8fafc;
+}
+
+// Header
+.app-header {
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f4c81 100%);
+  color: white;
+  padding: 0 20px;
+  height: 64px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  .branding {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .logo {
+      font-size: 28px;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .title-group {
+      display: flex;
+      flex-direction: column;
+
+      .app-title {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.3px;
+        background: linear-gradient(90deg, #ffffff, #93c5fd);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .app-subtitle {
+        font-size: 11px;
+        color: #94a3b8;
+        font-weight: 400;
+        letter-spacing: 0.3px;
+      }
+    }
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .btn-tracking {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    backdrop-filter: blur(4px);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    &.active {
+      background: #16a34a;
+      box-shadow: 0 0 12px rgba(22, 163, 74, 0.4);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: #4ade80;
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+  }
+
+  .btn-clear {
+    padding: 8px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+  }
+}
+
+// Main Layout
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 340px;
+  flex-shrink: 0;
+  background: white;
+  border-right: 1px solid #e2e8f0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
+
+  .sidebar-divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 0 16px;
+  }
+}
+
+.map-area {
+  flex: 1;
+  position: relative;
+}
+
+// Animations
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.5); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column-reverse;
+  }
+
+  .sidebar {
+    width: 100%;
+    max-height: 35vh;
+    border-right: none;
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  .app-header {
+    height: 52px;
+    padding: 0 12px;
+
+    .branding .logo {
+      font-size: 22px;
+    }
+
+    .branding .title-group {
+      .app-title {
+        font-size: 16px;
+      }
+
+      .app-subtitle {
+        font-size: 10px;
+      }
+    }
+  }
+}

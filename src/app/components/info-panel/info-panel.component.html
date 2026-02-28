@@ -1,0 +1,100 @@
+@if (flight) {
+  <div class="info-panel">
+    <div class="panel-header">
+      <div class="flight-info">
+        <span class="flight-number">{{ flight.config.iata }}</span>
+        <span class="airline">{{ flight.config.airline }}</span>
+      </div>
+      <div class="route-info">
+        <span class="airport-code">{{ flight.config.from }}</span>
+        <span class="route-line">————✈️————</span>
+        <span class="airport-code">{{ flight.config.to }}</span>
+      </div>
+    </div>
+
+    @if (flight.status === 'in-air' && flight.state) {
+      <div class="progress-bar-container">
+        <div class="progress-bar" [style.width.%]="progressPercent"></div>
+        <span class="progress-label">{{ progressPercent }}%</span>
+      </div>
+
+      <div class="data-grid">
+        <div class="data-item">
+          <span class="data-label">Höhe</span>
+          <span class="data-value">{{ altitudeMeters }}</span>
+          <span class="data-sub">{{ altitudeFeet }}</span>
+        </div>
+        <div class="data-item">
+          <span class="data-label">Geschwindigkeit</span>
+          <span class="data-value">{{ speedKmh }}</span>
+        </div>
+        <div class="data-item">
+          <span class="data-label">Kurs</span>
+          <span class="data-value">{{ heading }}</span>
+        </div>
+        <div class="data-item">
+          <span class="data-label">Vertikalrate</span>
+          <span class="data-value" [class]="verticalRateDirection">{{ verticalRate }}</span>
+        </div>
+        <div class="data-item">
+          <span class="data-label">Position</span>
+          <span class="data-value small">{{ coordinates }}</span>
+        </div>
+        <div class="data-item">
+          <span class="data-label">Strecke</span>
+          <span class="data-value small">{{ distanceTraveled }} / {{ totalDistance }}</span>
+        </div>
+      </div>
+
+      <div class="update-info">
+        Letztes Update: {{ lastUpdate }}
+      </div>
+    }
+
+    @if (flight.status === 'over-ocean') {
+      <div class="ocean-notice">
+        <span class="notice-icon">🌊</span>
+        <div class="notice-text">
+          <strong>Über dem Ozean</strong>
+          <p>Keine ADS-B-Empfänger in Reichweite. Die Position wird geschätzt.</p>
+          <p class="last-data">Letzte echte Daten: {{ lastUpdate }}</p>
+        </div>
+      </div>
+    }
+
+    @if (flight.status === 'planned') {
+      <div class="planned-notice">
+        <span class="notice-icon">📅</span>
+        <div class="notice-text">
+          <strong>Flug geplant</strong>
+          <p>Dieser Flug hat noch nicht begonnen oder es sind keine Live-Daten verfügbar.</p>
+          <p class="distance-info">Strecke: {{ totalDistance }}</p>
+        </div>
+      </div>
+    }
+
+    @if (flight.status === 'landed') {
+      <div class="landed-notice">
+        <span class="notice-icon">✅</span>
+        <div class="notice-text">
+          <strong>Gelandet</strong>
+          <p>{{ flight.config.iata }} ist in {{ flight.config.to }} angekommen!</p>
+        </div>
+      </div>
+    }
+
+    @if (flight.status === 'no-data') {
+      <div class="nodata-notice">
+        <span class="notice-icon">⚪</span>
+        <div class="notice-text">
+          <strong>Keine Daten</strong>
+          <p>Es konnten keine Flugdaten empfangen werden. Der Flug ist möglicherweise noch nicht gestartet.</p>
+        </div>
+      </div>
+    }
+  </div>
+} @else {
+  <div class="info-panel empty">
+    <p>Wähle einen Flug aus der Liste, um Details zu sehen.</p>
+  </div>
+}

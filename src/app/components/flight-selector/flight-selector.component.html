@@ -1,0 +1,31 @@
+<div class="flight-selector">
+  <h3 class="selector-title">Flüge</h3>
+  <div class="flight-cards">
+    @for (flight of tracking.trackedFlights(); track flight.config.id) {
+      <button
+        class="flight-card"
+        [class.selected]="tracking.selectedFlightId() === flight.config.id"
+        [class]="getStatusClass(flight.status)"
+        (click)="selectFlight(flight.config.id)"
+      >
+        <div class="card-header">
+          <span class="flight-number">{{ flight.config.iata }}</span>
+          <span class="status-badge" [class]="getStatusClass(flight.status)">
+            {{ getStatusIcon(flight.status) }} {{ getStatusLabel(flight.status) }}
+          </span>
+        </div>
+        <div class="card-route">
+          <span class="airport from">{{ flight.config.from }}</span>
+          <span class="route-arrow">
+            <svg width="24" height="12" viewBox="0 0 24 12">
+              <line x1="0" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="1.5"/>
+              <polygon points="18,2 24,6 18,10" fill="currentColor"/>
+            </svg>
+          </span>
+          <span class="airport to">{{ flight.config.to }}</span>
+        </div>
+        <div class="card-airline">{{ flight.config.airline }}</div>
+      </button>
+    }
+  </div>
+</div>

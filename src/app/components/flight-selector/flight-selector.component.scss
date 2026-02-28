@@ -1,0 +1,130 @@
+.flight-selector {
+  padding: 12px;
+
+  .selector-title {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .flight-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .flight-card {
+    display: block;
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    font-family: inherit;
+
+    &:hover {
+      border-color: #94a3b8;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    &.selected {
+      border-color: #3b82f6;
+      background: #eff6ff;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .flight-number {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .status-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      white-space: nowrap;
+
+      &.status-planned {
+        background: #f1f5f9;
+        color: #64748b;
+      }
+
+      &.status-in-air {
+        background: #dcfce7;
+        color: #16a34a;
+      }
+
+      &.status-landed {
+        background: #dbeafe;
+        color: #2563eb;
+      }
+
+      &.status-over-ocean {
+        background: #fef3c7;
+        color: #d97706;
+      }
+
+      &.status-no-data {
+        background: #f1f5f9;
+        color: #94a3b8;
+      }
+    }
+
+    .card-route {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+
+      .airport {
+        font-size: 14px;
+        font-weight: 600;
+        color: #334155;
+      }
+
+      .route-arrow {
+        color: #94a3b8;
+        display: flex;
+        align-items: center;
+      }
+    }
+
+    .card-airline {
+      font-size: 12px;
+      color: #64748b;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .flight-selector {
+    padding: 8px;
+
+    .flight-cards {
+      flex-direction: row;
+      overflow-x: auto;
+      gap: 8px;
+
+      .flight-card {
+        min-width: 180px;
+        flex-shrink: 0;
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+<div class="app-container">
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="branding">
+        <span class="logo">✈️</span>
+        <div class="title-group">
+          <h1 class="app-title">Svenni & Veronica</h1>
+          <span class="app-subtitle">FlightTracker — Reise nach Indonesien · August 2026</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button
+          class="btn-tracking"
+          [class.active]="tracking.isTracking()"
+          (click)="toggleTracking()"
+        >
+          @if (tracking.isTracking()) {
+            <span class="pulse-dot"></span> Live
+          } @else {
+            ▶ Start
+          }
+        </button>
+        <button class="btn-clear" (click)="clearHistory()" title="Verlauf löschen">
+          🗑️
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main content -->
+  <div class="main-content">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <app-flight-selector />
+      <div class="sidebar-divider"></div>
+      <app-info-panel />
+    </aside>
+
+    <!-- Map -->
+    <main class="map-area">
+      <app-map />
+    </main>
+  </div>
+</div>
