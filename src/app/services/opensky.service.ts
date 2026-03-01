@@ -1,70 +1,88 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, of, map, catchError } from 'rxjs';
-import { FlightState, OpenSkyResponse } from '../models/flight.model';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http'
+import { Injectable, inject } from '@angular/core'
+import { Observable, catchError, map, of } from 'rxjs'
+import { FlightState, OpenSkyResponse } from '../models/flight.model'
 
-const OPENSKY_BASE = 'https://opensky-network.org/api';
+const OPENSKY_BASE = 'https://opensky-network.org/api'
 
 @Injectable({ providedIn: 'root' })
 export class OpenSkyService {
   private readonly http = inject(HttpClient);
 
-  /**
-   * Get all flight states, optionally filtered by icao24 address(es).
-   */
-  getStates(icao24?: string | string[]): Observable<FlightState[]> {
-    let url = `${OPENSKY_BASE}/states/all`;
-    const params: Record<string, string> = {};
+  /** Track rate limit state */
+  private rateLimitedUntil = 0;
 
-    if (icao24) {
-      if (Array.isArray(icao24)) {
-        // Multiple icao24 addresses – use multiple params
-        const paramStr = icao24.map(id => `icao24=${id}`).join('&');
-        url = `${url}?${paramStr}`;
-        return this.http.get<OpenSkyResponse>(url).pipe(
-          map(res => this.parseStates(res)),
-          catchError(() => of([]))
-        );
-      } else {
-        params['icao24'] = icao24;
-      }
-    }
+  get isRateLimited (): boolean {
+    return Date.now() < this.rateLimitedUntil
+  }
 
-    return this.http.get<OpenSkyResponse>(url, { params }).pipe(
-      map(res => this.parseStates(res)),
-      catchError(() => of([]))
-    );
+  get rateLimitRemainingSeconds (): number {
+    return Math.max(0, Math.ceil((this.rateLimitedUntil - Date.now()) / 1000))
   }
 
   /**
-   * Search for a flight by ICAO callsign (e.g., "DLH2007").
-   * Since OpenSky doesn't support callsign filtering in query params,
-   * we fetch all states and filter client-side.
-   * Uses bounding box if provided to reduce data.
+   * Fetch all states in a single request and filter by callsigns client-side.
+   * This is the most efficient approach – ONE request for ALL flights.
    */
-  findByCallsign(callsign: string, boundingBox?: { lamin: number; lomin: number; lamax: number; lomax: number }): Observable<FlightState | null> {
-    let url = `${OPENSKY_BASE}/states/all`;
-    const params: Record<string, string> = {};
-
-    if (boundingBox) {
-      params['lamin'] = boundingBox.lamin.toString();
-      params['lomin'] = boundingBox.lomin.toString();
-      params['lamax'] = boundingBox.lamax.toString();
-      params['lomax'] = boundingBox.lomax.toString();
+  findFlightsByCallsigns (callsigns: string[]): Observable<Map<string, FlightState>> {
+    if (this.isRateLimited) {
+      console.warn(`OpenSky rate limited – waiting ${this.rateLimitRemainingSeconds}s`)
+      return of(new Map())
     }
 
-    return this.http.get<OpenSkyResponse>(url, { params }).pipe(
+    const targets = callsigns.map(c => c.toUpperCase().replace(/\s/g, ''))
+    const url = `${OPENSKY_BASE}/states/all`
+
+    return this.http.get<OpenSkyResponse>(url).pipe(
       map(res => {
-        const states = this.parseStates(res);
-        const target = callsign.toUpperCase().trim();
-        return states.find(s => s.callsign.toUpperCase().trim() === target) ?? null;
+        const states = this.parseStates(res)
+        const result = new Map<string, FlightState>()
+
+        for (const state of states) {
+          const cs = state.callsign.toUpperCase().replace(/\s/g, '')
+          if (targets.includes(cs)) {
+            result.set(cs, state)
+          }
+        }
+        return result
       }),
-      catchError(() => of(null))
-    );
+      catchError((err: HttpErrorResponse) => {
+        if (err.status === 429) {
+          // Rate limited – back off for 60 seconds
+          this.rateLimitedUntil = Date.now() + 60_000
+          console.warn('OpenSky 429 – backing off for 60s')
+        }
+        return of(new Map<string, FlightState>())
+      })
+    )
   }
 
-  private parseStates(response: OpenSkyResponse): FlightState[] {
-    if (!response.states) return [];
+  /**
+   * Get states filtered by icao24 address(es) – efficient targeted request.
+   */
+  getStatesByIcao24 (icao24s: string[]): Observable<FlightState[]> {
+    if (this.isRateLimited || icao24s.length === 0) {
+      return of([])
+    }
+
+    const url = `${OPENSKY_BASE}/states/all`
+    // OpenSky supports multiple icao24 params
+    const paramStr = icao24s.map(id => `icao24=${id}`).join('&')
+
+    return this.http.get<OpenSkyResponse>(`${url}?${paramStr}`).pipe(
+      map(res => this.parseStates(res)),
+      catchError((err: HttpErrorResponse) => {
+        if (err.status === 429) {
+          this.rateLimitedUntil = Date.now() + 60_000
+          console.warn('OpenSky 429 – backing off for 60s')
+        }
+        return of([])
+      })
+    )
+  }
+
+  private parseStates (response: OpenSkyResponse): FlightState[] {
+    if (!response.states) return []
 
     return response.states.map(s => ({
       icao24: s[0] as string,
@@ -80,6 +98,6 @@ export class OpenSkyService {
       trueTrack: s[10] as number | null,
       verticalRate: s[11] as number | null,
       geoAltitude: s[13] as number | null,
-    }));
+    }))
   }
 }

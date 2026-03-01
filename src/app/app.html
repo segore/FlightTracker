@@ -10,6 +10,9 @@
         </div>
       </div>
       <div class="header-actions">
+        @if (tracking.rateLimitInfo()) {
+          <span class="rate-limit-badge">⚠️ {{ tracking.rateLimitInfo() }}</span>
+        }
         <button
           class="btn-tracking"
           [class.active]="tracking.isTracking()"
@@ -21,9 +24,7 @@
             ▶ Start
           }
         </button>
-        <button class="btn-clear" (click)="clearHistory()" title="Verlauf löschen">
-          🗑️
-        </button>
+        <button class="btn-clear" (click)="clearHistory()" title="Verlauf löschen">🗑️</button>
       </div>
     </div>
   </header>

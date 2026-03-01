@@ -72,6 +72,16 @@
     align-items: center;
   }
 
+  .rate-limit-badge {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
   .btn-tracking {
     display: flex;
     align-items: center;
