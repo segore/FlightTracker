@@ -2,7 +2,7 @@ import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core'
 import { Observable, Subscription, firstValueFrom, interval, of, startWith, switchMap } from 'rxjs'
 import { catchError, map } from 'rxjs/operators'
 import { FLIGHTS } from '../config/flights.config'
-import { FlightConfig, FlightPathPoint, FlightState, FlightStatus, TrackedFlight } from '../models/flight.model'
+import { FlightConfig, FlightPathPoint, FlightState, FlightStatus, TrackedFlight, TrackingMode } from '../models/flight.model'
 import { GreatCircleService } from './great-circle.service'
 import { OpenSkyService } from './opensky.service'
 
@@ -31,11 +31,17 @@ export class FlightTrackingService implements OnDestroy {
     return this.trackedFlights().find(f => f.config.id === id) ?? null
   });
 
-  /** Whether tracking is active */
-  readonly isTracking = signal(false);
+  /** Current tracking mode */
+  readonly trackingMode = signal<TrackingMode>('off');
+
+  /** Whether live tracking is active (convenience) */
+  readonly isTracking = computed(() => this.trackingMode() === 'live');
 
   /** Rate limit status for UI display */
   readonly rateLimitInfo = signal('');
+
+  /** Busy flag for manual polling */
+  readonly isPolling = signal(false);
 
   private pollSubscription: Subscription | null = null;
   private currentPollInterval = POLL_INTERVAL_NORMAL;
@@ -54,22 +60,36 @@ export class FlightTrackingService implements OnDestroy {
     this.selectedFlightId.set(id)
   }
 
+  setMode (mode: TrackingMode): void {
+    // Stop any active polling first
+    this.pollSubscription?.unsubscribe()
+    this.pollSubscription = null
+    this.rateLimitInfo.set('')
+    this.trackingMode.set(mode)
+
+    if (mode === 'live') {
+      this.currentPollInterval = POLL_INTERVAL_NORMAL
+      this.setupPolling()
+    }
+    // 'manual' and 'off' don't start automatic polling
+  }
+
+  /** Legacy convenience methods */
   startTracking (): void {
-    if (this.pollSubscription) return
-    this.isTracking.set(true)
-    this.currentPollInterval = POLL_INTERVAL_NORMAL
-    this.setupPolling()
+    this.setMode('live')
   }
 
   stopTracking (): void {
-    this.pollSubscription?.unsubscribe()
-    this.pollSubscription = null
-    this.isTracking.set(false)
-    this.rateLimitInfo.set('')
+    this.setMode('off')
   }
 
   async pollOnce (): Promise<void> {
-    await firstValueFrom(this.doPoll())
+    this.isPolling.set(true)
+    try {
+      await firstValueFrom(this.doPoll())
+    } finally {
+      this.isPolling.set(false)
+    }
   }
 
   private setupPolling (immediate = true): void {
@@ -186,7 +206,7 @@ export class FlightTrackingService implements OnDestroy {
     console.warn('FlightTracker: Switching to backoff polling (120s)')
     this.currentPollInterval = POLL_INTERVAL_BACKOFF
     this.rateLimitInfo.set(`Rate Limit – nächster Versuch in ${Math.ceil(this.currentPollInterval / 1000)}s`)
-    if (this.isTracking()) {
+    if (this.trackingMode() === 'live') {
       // Restart WITHOUT immediate request – let the interval wait first
       this.setupPolling(false)
     }

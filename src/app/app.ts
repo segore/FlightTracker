@@ -1,8 +1,9 @@
-import { Component, inject, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
-import { MapComponent } from './components/map/map.component';
-import { FlightSelectorComponent } from './components/flight-selector/flight-selector.component';
-import { InfoPanelComponent } from './components/info-panel/info-panel.component';
-import { FlightTrackingService } from './services/flight-tracking.service';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { FlightSelectorComponent } from './components/flight-selector/flight-selector.component'
+import { InfoPanelComponent } from './components/info-panel/info-panel.component'
+import { MapComponent } from './components/map/map.component'
+import { TrackingMode } from './models/flight.model'
+import { FlightTrackingService } from './services/flight-tracking.service'
 
 @Component({
   selector: 'app-root',
@@ -12,28 +13,20 @@ import { FlightTrackingService } from './services/flight-tracking.service';
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class App implements OnInit, OnDestroy {
+export class App {
   protected readonly tracking = inject(FlightTrackingService);
 
-  ngOnInit(): void {
-    this.tracking.startTracking();
+  setMode (mode: TrackingMode): void {
+    this.tracking.setMode(mode)
   }
 
-  ngOnDestroy(): void {
-    this.tracking.stopTracking();
+  manualPoll (): void {
+    this.tracking.pollOnce()
   }
 
-  toggleTracking(): void {
-    if (this.tracking.isTracking()) {
-      this.tracking.stopTracking();
-    } else {
-      this.tracking.startTracking();
-    }
-  }
-
-  clearHistory(): void {
+  clearHistory (): void {
     if (confirm('Verlaufsdaten löschen? Alle gespeicherten Flugrouten werden entfernt.')) {
-      this.tracking.clearPathHistory();
+      this.tracking.clearPathHistory()
     }
   }
 }

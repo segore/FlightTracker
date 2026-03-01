@@ -82,36 +82,78 @@
     white-space: nowrap;
   }
 
-  .btn-tracking {
+  .mode-switch {
+    display: flex;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+
+    .mode-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 14px;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.55);
+      white-space: nowrap;
+
+      &:not(:last-child) {
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.85);
+      }
+
+      &.active {
+        background: rgba(255, 255, 255, 0.18);
+        color: white;
+      }
+
+      &.mode-btn-live.active {
+        background: #16a34a;
+        box-shadow: 0 0 12px rgba(22, 163, 74, 0.4);
+      }
+
+      .pulse-dot {
+        width: 7px;
+        height: 7px;
+        background: #4ade80;
+        border-radius: 50%;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+    }
+  }
+
+  .btn-poll {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    border: none;
+    gap: 5px;
+    padding: 7px 14px;
+    border: 1px solid rgba(59, 130, 246, 0.4);
     border-radius: 8px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    backdrop-filter: blur(4px);
+    background: rgba(59, 130, 246, 0.15);
+    color: #93c5fd;
+    white-space: nowrap;
 
-    &:hover {
-      background: rgba(255, 255, 255, 0.2);
+    &:hover:not(:disabled) {
+      background: rgba(59, 130, 246, 0.3);
+      border-color: rgba(59, 130, 246, 0.6);
     }
 
-    &.active {
-      background: #16a34a;
-      box-shadow: 0 0 12px rgba(22, 163, 74, 0.4);
-    }
-
-    .pulse-dot {
-      width: 8px;
-      height: 8px;
-      background: #4ade80;
-      border-radius: 50%;
-      animation: pulse 1.5s ease-in-out infinite;
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   }
 

@@ -13,17 +13,55 @@
         @if (tracking.rateLimitInfo()) {
           <span class="rate-limit-badge">⚠️ {{ tracking.rateLimitInfo() }}</span>
         }
-        <button
-          class="btn-tracking"
-          [class.active]="tracking.isTracking()"
-          (click)="toggleTracking()"
-        >
-          @if (tracking.isTracking()) {
-            <span class="pulse-dot"></span> Live
-          } @else {
-            ▶ Start
-          }
-        </button>
+
+        <!-- 3-state tracking mode switch -->
+        <div class="mode-switch">
+          <button
+            class="mode-btn"
+            [class.active]="tracking.trackingMode() === 'off'"
+            (click)="setMode('off')"
+            title="Tracking deaktiviert"
+          >
+            Aus
+          </button>
+          <button
+            class="mode-btn"
+            [class.active]="tracking.trackingMode() === 'manual'"
+            (click)="setMode('manual')"
+            title="Manuelles Polling per Knopfdruck"
+          >
+            Manuell
+          </button>
+          <button
+            class="mode-btn mode-btn-live"
+            [class.active]="tracking.trackingMode() === 'live'"
+            (click)="setMode('live')"
+            title="Automatisches Polling alle 30 Sekunden"
+          >
+            @if (tracking.trackingMode() === 'live') {
+              <span class="pulse-dot"></span>
+            }
+            Live
+          </button>
+        </div>
+
+        <!-- Manual poll trigger (only visible in manual mode) -->
+        @if (tracking.trackingMode() === 'manual') {
+          <button
+            class="btn-poll"
+            (click)="manualPoll()"
+            [disabled]="tracking.isPolling()"
+            title="Einmal abfragen"
+          >
+            @if (tracking.isPolling()) {
+              ⏳
+            } @else {
+              🔄
+            }
+            Abfragen
+          </button>
+        }
+
         <button class="btn-clear" (click)="clearHistory()" title="Verlauf löschen">🗑️</button>
       </div>
     </div>
