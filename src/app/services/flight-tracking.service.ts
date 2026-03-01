@@ -6,8 +6,8 @@ import { FlightConfig, FlightPathPoint, FlightState, FlightStatus, TrackedFlight
 import { GreatCircleService } from './great-circle.service'
 import { OpenSkyService } from './opensky.service'
 
-const POLL_INTERVAL_NORMAL = 30_000  // 30 seconds – safe for anonymous rate limit
-const POLL_INTERVAL_BACKOFF = 90_000 // 90 seconds – after rate limit hit
+const POLL_INTERVAL_NORMAL = 30_000    // 30 seconds – safe for anonymous rate limit
+const POLL_INTERVAL_BACKOFF = 120_000  // 2 minutes – after rate limit hit
 const DATA_GAP_THRESHOLD = 120_000   // 2 minutes – mark as "over-ocean"
 const STORAGE_PREFIX = 'ft_path_'
 const ICAO24_CACHE_KEY = 'ft_icao24_cache'
@@ -72,10 +72,12 @@ export class FlightTrackingService implements OnDestroy {
     await firstValueFrom(this.doPoll())
   }
 
-  private setupPolling (): void {
+  private setupPolling (immediate = true): void {
     this.pollSubscription?.unsubscribe()
-    this.pollSubscription = interval(this.currentPollInterval).pipe(
-      startWith(0),
+    const source$ = immediate
+      ? interval(this.currentPollInterval).pipe(startWith(0))
+      : interval(this.currentPollInterval)
+    this.pollSubscription = source$.pipe(
       switchMap(() => this.doPoll())
     ).subscribe()
   }
@@ -181,13 +183,12 @@ export class FlightTrackingService implements OnDestroy {
   }
 
   private switchToBackoff (): void {
-    if (this.currentPollInterval !== POLL_INTERVAL_BACKOFF) {
-      console.warn('FlightTracker: Switching to backoff polling (90s)')
-      this.currentPollInterval = POLL_INTERVAL_BACKOFF
-      this.rateLimitInfo.set('Rate Limit erreicht – Intervall auf 90s erhöht')
-      if (this.isTracking()) {
-        this.setupPolling() // Restart with new interval
-      }
+    console.warn('FlightTracker: Switching to backoff polling (120s)')
+    this.currentPollInterval = POLL_INTERVAL_BACKOFF
+    this.rateLimitInfo.set(`Rate Limit – nächster Versuch in ${Math.ceil(this.currentPollInterval / 1000)}s`)
+    if (this.isTracking()) {
+      // Restart WITHOUT immediate request – let the interval wait first
+      this.setupPolling(false)
     }
   }
 

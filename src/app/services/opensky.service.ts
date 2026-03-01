@@ -48,9 +48,9 @@ export class OpenSkyService {
       }),
       catchError((err: HttpErrorResponse) => {
         if (err.status === 429) {
-          // Rate limited – back off for 60 seconds
-          this.rateLimitedUntil = Date.now() + 60_000
-          console.warn('OpenSky 429 – backing off for 60s')
+          // Rate limited – back off for 3 minutes (OpenSky needs longer cooldown)
+          this.rateLimitedUntil = Date.now() + 180_000
+          console.warn('OpenSky 429 – backing off for 180s')
         }
         return of(new Map<string, FlightState>())
       })
@@ -73,8 +73,8 @@ export class OpenSkyService {
       map(res => this.parseStates(res)),
       catchError((err: HttpErrorResponse) => {
         if (err.status === 429) {
-          this.rateLimitedUntil = Date.now() + 60_000
-          console.warn('OpenSky 429 – backing off for 60s')
+          this.rateLimitedUntil = Date.now() + 180_000
+          console.warn('OpenSky 429 – backing off for 180s')
         }
         return of([])
       })
