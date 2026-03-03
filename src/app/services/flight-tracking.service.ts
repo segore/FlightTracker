@@ -9,6 +9,7 @@ import { OpenSkyService } from './opensky.service'
 const POLL_INTERVAL_NORMAL = 30_000    // 30 seconds – safe for anonymous rate limit
 const POLL_INTERVAL_BACKOFF = 120_000  // 2 minutes – after rate limit hit
 const DATA_GAP_THRESHOLD = 120_000   // 2 minutes – mark as "over-ocean"
+const LANDED_THRESHOLD = 2 * 60 * 60_000 // 2 hours – if no data for this long, assume landed
 const STORAGE_PREFIX = 'ft_path_'
 const ICAO24_CACHE_KEY = 'ft_icao24_cache'
 
@@ -133,6 +134,8 @@ export class FlightTrackingService implements OnDestroy {
    * This is a very small API response (~1-3 aircraft instead of ~10,000+).
    */
   private pollViaCachedIcao24 (flights: TrackedFlight[], icao24s: string[]): Observable<void> {
+    console.log(`FlightTracker: Gezielte Abfrage für ${icao24s.length} ICAO24-Adressen: ${icao24s.join(', ')}`)
+
     return this.openSky.getStatesByIcao24(icao24s).pipe(
       map(states => {
         let foundAny = false
@@ -177,13 +180,19 @@ export class FlightTrackingService implements OnDestroy {
   }
 
   /**
-   * Full search: ONE request for all states, filter by callsigns client-side.
-   * Used only when we don't have cached icao24 addresses.
+   * Discovery search: compute a geographic bounding box from the flight routes
+   * and query only that area. MUCH smaller response than fetching all global states.
+   *
+   * Typical response sizes:
+   * - DUS→MUC (short haul): ~100-300 aircraft
+   * - SIN→SUB (short haul): ~50-200 aircraft
+   * - MUC→SIN (long haul): ~2000-5000 aircraft (still way better than ~10,000+ global)
    */
   private pollViaCallsignSearch (flights: TrackedFlight[]): Observable<void> {
     const callsigns = flights.map(f => f.config.icaoCallsign)
+    const bounds = this.computeRouteBounds(flights)
 
-    return this.openSky.findFlightsByCallsigns(callsigns).pipe(
+    return this.openSky.findFlightsInArea(callsigns, bounds).pipe(
       map(stateMap => {
         for (const flight of flights) {
           const cs = flight.config.icaoCallsign.toUpperCase().replace(/\s/g, '')
@@ -200,6 +209,36 @@ export class FlightTrackingService implements OnDestroy {
         return of(undefined)
       })
     )
+  }
+
+  /**
+   * Compute a bounding box that encompasses all given flight routes.
+   * Adds padding (5°) to cover deviations from the great-circle path.
+   */
+  private computeRouteBounds (flights: TrackedFlight[]): {
+    lamin: number; lamax: number; lomin: number; lomax: number
+  } {
+    let lamin = 90
+    let lamax = -90
+    let lomin = 180
+    let lomax = -180
+
+    for (const f of flights) {
+      const { fromCoords, toCoords } = f.config
+      lamin = Math.min(lamin, fromCoords[0], toCoords[0])
+      lamax = Math.max(lamax, fromCoords[0], toCoords[0])
+      lomin = Math.min(lomin, fromCoords[1], toCoords[1])
+      lomax = Math.max(lomax, fromCoords[1], toCoords[1])
+    }
+
+    // Padding for flight path deviations and approach/departure areas
+    const PAD = 5
+    return {
+      lamin: Math.max(-90, lamin - PAD),
+      lamax: Math.min(90, lamax + PAD),
+      lomin: Math.max(-180, lomin - PAD),
+      lomax: Math.min(180, lomax + PAD)
+    }
   }
 
   private switchToBackoff (): void {
@@ -224,10 +263,14 @@ export class FlightTrackingService implements OnDestroy {
           const timeSinceLastUpdate = f.lastUpdateTime ? now - f.lastUpdateTime : null
           let status: FlightStatus = 'no-data'
 
-          if (f.path.length > 0 && timeSinceLastUpdate && timeSinceLastUpdate > DATA_GAP_THRESHOLD) {
-            status = 'over-ocean'
-          } else if (f.path.length === 0) {
+          if (f.path.length === 0) {
             status = 'planned'
+          } else if (timeSinceLastUpdate && timeSinceLastUpdate > LANDED_THRESHOLD) {
+            // No data for 2+ hours → flight is most likely landed
+            status = 'landed'
+          } else if (timeSinceLastUpdate && timeSinceLastUpdate > DATA_GAP_THRESHOLD) {
+            // Short gap (2 min – 2 h) → probably over ocean with no ADS-B coverage
+            status = 'over-ocean'
           }
 
           return { ...f, status }

@@ -21,36 +21,63 @@ export class OpenSkyService {
   }
 
   /**
-   * Fetch all states in a single request and filter by callsigns client-side.
-   * This is the most efficient approach – ONE request for ALL flights.
+   * Search for flights by callsign within a geographic bounding box.
+   * Uses server-side geographic filtering → returns only a few hundred aircraft
+   * instead of ~10,000+ globally. Then filters by callsign client-side.
    */
-  findFlightsByCallsigns (callsigns: string[]): Observable<Map<string, FlightState>> {
+  findFlightsInArea (
+    callsigns: string[],
+    bounds: { lamin: number; lamax: number; lomin: number; lomax: number }
+  ): Observable<Map<string, FlightState>> {
     if (this.isRateLimited) {
       console.warn(`OpenSky rate limited – waiting ${this.rateLimitRemainingSeconds}s`)
       return of(new Map())
     }
 
     const targets = callsigns.map(c => c.toUpperCase().replace(/\s/g, ''))
-    const url = `${OPENSKY_BASE}/states/all`
+    const url = `${OPENSKY_BASE}/states/all?lamin=${bounds.lamin}&lamax=${bounds.lamax}&lomin=${bounds.lomin}&lomax=${bounds.lomax}`
+
+    console.log(`OpenSky: Frage Bereich ab lat ${bounds.lamin.toFixed(1)}–${bounds.lamax.toFixed(1)}, lon ${bounds.lomin.toFixed(1)}–${bounds.lomax.toFixed(1)}`)
 
     return this.http.get<OpenSkyResponse>(url).pipe(
       map(res => {
         const states = this.parseStates(res)
+        console.log(`OpenSky: ${states.length} Flugzeuge im Suchbereich (statt ~10.000+ global)`)
+
         const result = new Map<string, FlightState>()
+        const similarCallsigns: string[] = []
 
         for (const state of states) {
           const cs = state.callsign.toUpperCase().replace(/\s/g, '')
           if (targets.includes(cs)) {
             result.set(cs, state)
           }
+          // Collect callsigns from same airline for diagnostics
+          for (const target of targets) {
+            if (cs && cs.startsWith(target.substring(0, 3)) && !targets.includes(cs)) {
+              similarCallsigns.push(cs)
+            }
+          }
         }
+
+        if (similarCallsigns.length > 0) {
+          const unique = [...new Set(similarCallsigns)].sort().slice(0, 20)
+          console.log(`OpenSky: Ähnliche Callsigns (gleiche Airline): ${unique.join(', ')}`)
+        }
+
+        console.log(
+          `OpenSky: ${result.size}/${targets.length} Flüge gefunden: ` +
+          targets.map(t => result.has(t) ? `✓ ${t}` : `✗ ${t}`).join(', ')
+        )
+
         return result
       }),
       catchError((err: HttpErrorResponse) => {
         if (err.status === 429) {
-          // Rate limited – back off for 3 minutes (OpenSky needs longer cooldown)
           this.rateLimitedUntil = Date.now() + 180_000
           console.warn('OpenSky 429 – backing off for 180s')
+        } else {
+          console.error(`OpenSky Fehler: ${err.status} ${err.statusText}`)
         }
         return of(new Map<string, FlightState>())
       })
@@ -59,6 +86,7 @@ export class OpenSkyService {
 
   /**
    * Get states filtered by icao24 address(es) – efficient targeted request.
+   * Returns only the exact aircraft we're looking for → ~1-3 results.
    */
   getStatesByIcao24 (icao24s: string[]): Observable<FlightState[]> {
     if (this.isRateLimited || icao24s.length === 0) {
@@ -69,8 +97,14 @@ export class OpenSkyService {
     // OpenSky supports multiple icao24 params
     const paramStr = icao24s.map(id => `icao24=${id}`).join('&')
 
+    console.log(`OpenSky: Gezielte ICAO24-Abfrage für ${icao24s.join(', ')}`)
+
     return this.http.get<OpenSkyResponse>(`${url}?${paramStr}`).pipe(
-      map(res => this.parseStates(res)),
+      map(res => {
+        const states = this.parseStates(res)
+        console.log(`OpenSky: ${states.length} Ergebnis(se) für ICAO24-Abfrage`)
+        return states
+      }),
       catchError((err: HttpErrorResponse) => {
         if (err.status === 429) {
           this.rateLimitedUntil = Date.now() + 180_000
