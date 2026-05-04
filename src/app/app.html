@@ -63,6 +63,16 @@
         }
 
         <button class="btn-clear" (click)="clearHistory()" title="Verlauf löschen">🗑️</button>
+
+        <!-- OpenSky Einstellungen -->
+        <button
+          class="btn-auth"
+          [class.authenticated]="openSky.hasWorker()"
+          (click)="showCredentialsDialog.set(true)"
+          title="OpenSky / Cloudflare Worker Einstellungen"
+        >
+          {{ openSky.hasWorker() ? '🔓' : '🔐' }}
+        </button>
       </div>
     </div>
   </header>
@@ -82,3 +92,7 @@
     </main>
   </div>
 </div>
+
+@if (showCredentialsDialog()) {
+  <app-credentials-dialog (closed)="showCredentialsDialog.set(false)" />
+}

@@ -1,9 +1,15 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http'
-import { Injectable, inject } from '@angular/core'
+import { Injectable, computed, inject, signal } from '@angular/core'
 import { Observable, catchError, map, of } from 'rxjs'
 import { FlightState, OpenSkyResponse } from '../models/flight.model'
 
-const OPENSKY_BASE = 'https://opensky-network.org/api'
+const SETTINGS_KEY = 'ft_opensky_settings'
+
+interface OpenSkySettings {
+  workerUrl: string        // e.g. https://my-worker.my-name.workers.dev
+  clientId: string         // OAuth2 client_id from OpenSky account page
+  clientSecret: string     // OAuth2 client_secret
+}
 
 @Injectable({ providedIn: 'root' })
 export class OpenSkyService {
@@ -11,6 +17,12 @@ export class OpenSkyService {
 
   /** Track rate limit state */
   private rateLimitedUntil = 0;
+
+  private readonly settings = signal<OpenSkySettings | null>(this.loadSettings());
+
+  readonly hasWorker = computed(() => !!this.settings()?.workerUrl);
+  readonly hasCredentials = computed(() => !!this.settings()?.clientId && !!this.settings()?.clientSecret);
+  readonly workerUrl = computed(() => this.settings()?.workerUrl ?? '');
 
   get isRateLimited (): boolean {
     return Date.now() < this.rateLimitedUntil
@@ -20,63 +32,119 @@ export class OpenSkyService {
     return Math.max(0, Math.ceil((this.rateLimitedUntil - Date.now()) / 1000))
   }
 
+  saveSettings (workerUrl: string, clientId: string, clientSecret: string): void {
+    const s: OpenSkySettings = { workerUrl: workerUrl.trim().replace(/\/$/, ''), clientId, clientSecret }
+    this.settings.set(s)
+    try
+    {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(s))
+    } catch { /* ignore */ }
+  }
+
+  clearSettings (): void {
+    this.settings.set(null)
+    localStorage.removeItem(SETTINGS_KEY)
+  }
+
+  private loadSettings (): OpenSkySettings | null {
+    try
+    {
+      const stored = localStorage.getItem(SETTINGS_KEY)
+      return stored ? JSON.parse(stored) : null
+    } catch
+    {
+      return null
+    }
+  }
+
+  /**
+   * Build a URL targeting the Cloudflare Worker proxy.
+   * OAuth2 credentials are passed as query params so the Worker
+   * fetches a Bearer token server-side (no CORS preflight issues).
+   */
+  private buildUrl (path: string, extraParams: [string, string][] = []): string {
+    const s = this.settings()
+    if (!s?.workerUrl) throw new Error('Kein Cloudflare Worker konfiguriert.')
+    const url = new URL(`${s.workerUrl}/proxy${path}`)
+    for (const [k, v] of extraParams) url.searchParams.append(k, v)
+    if (s.clientId && s.clientSecret)
+    {
+      url.searchParams.set('_client_id', s.clientId)
+      url.searchParams.set('_client_secret', s.clientSecret)
+    }
+    return url.toString()
+  }
+
   /**
    * Search for flights by callsign within a geographic bounding box.
-   * Uses server-side geographic filtering → returns only a few hundred aircraft
-   * instead of ~10,000+ globally. Then filters by callsign client-side.
    */
   findFlightsInArea (
     callsigns: string[],
     bounds: { lamin: number; lamax: number; lomin: number; lomax: number }
   ): Observable<Map<string, FlightState>> {
-    if (this.isRateLimited) {
+    if (this.isRateLimited)
+    {
       console.warn(`OpenSky rate limited – waiting ${this.rateLimitRemainingSeconds}s`)
       return of(new Map())
     }
 
-    const targets = callsigns.map(c => c.toUpperCase().replace(/\s/g, ''))
-    const url = `${OPENSKY_BASE}/states/all?lamin=${bounds.lamin}&lamax=${bounds.lamax}&lomin=${bounds.lomin}&lomax=${bounds.lomax}`
+    let url: string
+    try
+    {
+      url = this.buildUrl('/states/all', [
+        ['lamin', String(bounds.lamin)],
+        ['lamax', String(bounds.lamax)],
+        ['lomin', String(bounds.lomin)],
+        ['lomax', String(bounds.lomax)],
+      ])
+    } catch (e: any)
+    {
+      console.error(e.message)
+      return of(new Map())
+    }
 
-    console.log(`OpenSky: Frage Bereich ab lat ${bounds.lamin.toFixed(1)}–${bounds.lamax.toFixed(1)}, lon ${bounds.lomin.toFixed(1)}–${bounds.lomax.toFixed(1)}`)
+    const targets = callsigns.map(c => c.toUpperCase().replace(/\s/g, ''))
+    console.log(`OpenSky: Bereich lat ${bounds.lamin.toFixed(1)}–${bounds.lamax.toFixed(1)}, lon ${bounds.lomin.toFixed(1)}–${bounds.lomax.toFixed(1)} (Auth: ${this.hasCredentials() ? 'ja' : 'nein'})`)
 
     return this.http.get<OpenSkyResponse>(url).pipe(
       map(res => {
         const states = this.parseStates(res)
-        console.log(`OpenSky: ${states.length} Flugzeuge im Suchbereich (statt ~10.000+ global)`)
+        console.log(`OpenSky: ${states.length} Flugzeuge im Suchbereich`)
 
         const result = new Map<string, FlightState>()
         const similarCallsigns: string[] = []
 
-        for (const state of states) {
+        for (const state of states)
+        {
           const cs = state.callsign.toUpperCase().replace(/\s/g, '')
-          if (targets.includes(cs)) {
-            result.set(cs, state)
-          }
-          // Collect callsigns from same airline for diagnostics
-          for (const target of targets) {
-            if (cs && cs.startsWith(target.substring(0, 3)) && !targets.includes(cs)) {
+          if (targets.includes(cs)) result.set(cs, state)
+          for (const target of targets)
+          {
+            if (cs && cs.startsWith(target.substring(0, 3)) && !targets.includes(cs))
+            {
               similarCallsigns.push(cs)
             }
           }
         }
 
-        if (similarCallsigns.length > 0) {
+        if (similarCallsigns.length > 0)
+        {
           const unique = [...new Set(similarCallsigns)].sort().slice(0, 20)
-          console.log(`OpenSky: Ähnliche Callsigns (gleiche Airline): ${unique.join(', ')}`)
+          console.log(`OpenSky: Ähnliche Callsigns: ${unique.join(', ')}`)
         }
-
         console.log(
-          `OpenSky: ${result.size}/${targets.length} Flüge gefunden: ` +
+          `OpenSky: ${result.size}/${targets.length} gefunden: ` +
           targets.map(t => result.has(t) ? `✓ ${t}` : `✗ ${t}`).join(', ')
         )
-
         return result
       }),
       catchError((err: HttpErrorResponse) => {
-        if (err.status === 429) {
+        if (err.status === 429)
+        {
           this.rateLimitedUntil = Date.now() + 180_000
           console.warn('OpenSky 429 – backing off for 180s')
-        } else {
+        } else
+        {
           console.error(`OpenSky Fehler: ${err.status} ${err.statusText}`)
         }
         return of(new Map<string, FlightState>())
@@ -85,28 +153,32 @@ export class OpenSkyService {
   }
 
   /**
-   * Get states filtered by icao24 address(es) – efficient targeted request.
-   * Returns only the exact aircraft we're looking for → ~1-3 results.
+   * Get states filtered by icao24 address(es) – most efficient targeted request.
    */
   getStatesByIcao24 (icao24s: string[]): Observable<FlightState[]> {
-    if (this.isRateLimited || icao24s.length === 0) {
+    if (this.isRateLimited || icao24s.length === 0) return of([])
+
+    let url: string
+    try
+    {
+      url = this.buildUrl('/states/all', icao24s.map(id => ['icao24', id]))
+    } catch (e: any)
+    {
+      console.error(e.message)
       return of([])
     }
 
-    const url = `${OPENSKY_BASE}/states/all`
-    // OpenSky supports multiple icao24 params
-    const paramStr = icao24s.map(id => `icao24=${id}`).join('&')
+    console.log(`OpenSky: ICAO24-Abfrage für ${icao24s.join(', ')}`)
 
-    console.log(`OpenSky: Gezielte ICAO24-Abfrage für ${icao24s.join(', ')}`)
-
-    return this.http.get<OpenSkyResponse>(`${url}?${paramStr}`).pipe(
+    return this.http.get<OpenSkyResponse>(url).pipe(
       map(res => {
         const states = this.parseStates(res)
         console.log(`OpenSky: ${states.length} Ergebnis(se) für ICAO24-Abfrage`)
         return states
       }),
       catchError((err: HttpErrorResponse) => {
-        if (err.status === 429) {
+        if (err.status === 429)
+        {
           this.rateLimitedUntil = Date.now() + 180_000
           console.warn('OpenSky 429 – backing off for 180s')
         }
@@ -135,3 +207,4 @@ export class OpenSkyService {
     }))
   }
 }
+
