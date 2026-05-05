@@ -7,8 +7,6 @@ const SETTINGS_KEY = 'ft_opensky_settings'
 
 interface OpenSkySettings {
   workerUrl: string        // e.g. https://my-worker.my-name.workers.dev
-  clientId: string         // OAuth2 client_id from OpenSky account page
-  clientSecret: string     // OAuth2 client_secret
 }
 
 @Injectable({ providedIn: 'root' })
@@ -21,7 +19,6 @@ export class OpenSkyService {
   private readonly settings = signal<OpenSkySettings | null>(this.loadSettings());
 
   readonly hasWorker = computed(() => !!this.settings()?.workerUrl);
-  readonly hasCredentials = computed(() => !!this.settings()?.clientId && !!this.settings()?.clientSecret);
   readonly workerUrl = computed(() => this.settings()?.workerUrl ?? '');
 
   get isRateLimited (): boolean {
@@ -32,8 +29,8 @@ export class OpenSkyService {
     return Math.max(0, Math.ceil((this.rateLimitedUntil - Date.now()) / 1000))
   }
 
-  saveSettings (workerUrl: string, clientId: string, clientSecret: string): void {
-    const s: OpenSkySettings = { workerUrl: workerUrl.trim().replace(/\/$/, ''), clientId, clientSecret }
+  saveSettings (workerUrl: string): void {
+    const s: OpenSkySettings = { workerUrl: workerUrl.trim().replace(/\/$/, '') }
     this.settings.set(s)
     try
     {
@@ -59,19 +56,13 @@ export class OpenSkyService {
 
   /**
    * Build a URL targeting the Cloudflare Worker proxy.
-   * OAuth2 credentials are passed as query params so the Worker
-   * fetches a Bearer token server-side (no CORS preflight issues).
+   * OAuth2 is handled inside the Worker via Cloudflare Secrets.
    */
   private buildUrl (path: string, extraParams: [string, string][] = []): string {
     const s = this.settings()
     if (!s?.workerUrl) throw new Error('Kein Cloudflare Worker konfiguriert.')
     const url = new URL(`${s.workerUrl}/proxy${path}`)
     for (const [k, v] of extraParams) url.searchParams.append(k, v)
-    if (s.clientId && s.clientSecret)
-    {
-      url.searchParams.set('_client_id', s.clientId)
-      url.searchParams.set('_client_secret', s.clientSecret)
-    }
     return url.toString()
   }
 
@@ -104,7 +95,7 @@ export class OpenSkyService {
     }
 
     const targets = callsigns.map(c => c.toUpperCase().replace(/\s/g, ''))
-    console.log(`OpenSky: Bereich lat ${bounds.lamin.toFixed(1)}–${bounds.lamax.toFixed(1)}, lon ${bounds.lomin.toFixed(1)}–${bounds.lomax.toFixed(1)} (Auth: ${this.hasCredentials() ? 'ja' : 'nein'})`)
+    console.log(`OpenSky: Bereich lat ${bounds.lamin.toFixed(1)}–${bounds.lamax.toFixed(1)}, lon ${bounds.lomin.toFixed(1)}–${bounds.lomax.toFixed(1)} (via Worker)`)
 
     return this.http.get<OpenSkyResponse>(url).pipe(
       map(res => {

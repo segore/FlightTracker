@@ -5,17 +5,19 @@
  *  1. https://dash.cloudflare.com aufrufen (kostenloser Account genügt)
  *  2. Workers & Pages → Create → Create Worker
  *  3. Diesen Code einfügen und "Deploy" klicken
- *  4. Die generierte *.workers.dev URL in der App unter 🔑 eintragen
+ *  4. Worker → Settings → Variables and Secrets → Add secret:
+ *       - OPENSKY_CLIENT_ID
+ *       - OPENSKY_CLIENT_SECRET
+ *  5. Die generierte *.workers.dev URL in der App unter 🔑 eintragen
  *
  * Optional: Eigene Domain statt *.workers.dev
  *
  * CORS: Der Worker fügt Access-Control-Allow-Origin: * hinzu,
  *       damit die GitHub-Pages-App darauf zugreifen kann.
  *
- * Auth: Wer sich mit OpenSky-Zugangsdaten authentifizieren möchte,
- *       übergibt client_id + client_secret als Query-Parameter.
- *       Der Worker holt selbst ein Bearer-Token und leitet die
- *       Anfrage weiter. Das Token wird 25 Minuten gecacht.
+ * Auth: Der Worker nutzt OPENSKY_CLIENT_ID / OPENSKY_CLIENT_SECRET
+ *       aus Cloudflare Secrets. Keine Secrets im Frontend.
+ *       Das Bearer-Token wird 25 Minuten gecacht.
  *
  * Rate limiting: Cloudflare Workers Free = 100.000 Requests/Tag,
  *               mehr als genug für diesen Use-Case.
@@ -75,12 +77,6 @@ export default {
 
     const url = new URL(request.url);
 
-    // Extract optional OAuth2 credentials passed as query params
-    const clientId = url.searchParams.get('_client_id');
-    const clientSecret = url.searchParams.get('_client_secret');
-    url.searchParams.delete('_client_id');
-    url.searchParams.delete('_client_secret');
-
     // Build target OpenSky URL: /proxy/states/all?... → /api/states/all?...
     const pathMatch = url.pathname.match(/^\/proxy(\/.+)$/);
     if (!pathMatch) {
@@ -90,6 +86,16 @@ export default {
     const targetUrl = `${OPENSKY_BASE}${pathMatch[1]}${url.search}`;
 
     const headers = {};
+    const clientId = env.OPENSKY_CLIENT_ID;
+    const clientSecret = env.OPENSKY_CLIENT_SECRET;
+
+    if ((clientId && !clientSecret) || (!clientId && clientSecret)) {
+      return new Response('Worker misconfigured: set both OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET', {
+        status: 500,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
     if (clientId && clientSecret) {
       try {
         const token = await getToken(clientId, clientSecret);

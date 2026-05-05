@@ -57,3 +57,20 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+## OpenSky + Cloudflare Worker Setup
+
+Diese App nutzt einen Cloudflare Worker als CORS-Proxy fuer OpenSky.
+
+1. In Cloudflare: `Workers & Pages` -> `Create` -> `Create Worker`
+2. Inhalt von `cloudflare-worker/worker.js` einfuegen und deployen
+3. Im Worker: `Settings` -> `Variables and Secrets` -> `Add secret`
+4. Diese beiden Secrets anlegen:
+	- `OPENSKY_CLIENT_ID`
+	- `OPENSKY_CLIENT_SECRET`
+5. Worker-URL (z. B. `https://my-worker.my-name.workers.dev`) kopieren
+6. In der App auf das Schloss-Symbol klicken und nur die Worker-URL eintragen
+
+Hinweise:
+- Keine OpenSky-Secrets im Frontend speichern.
+- Wenn keine Secrets im Worker gesetzt sind, laeuft der Worker anonym mit geringerem OpenSky-Limit.

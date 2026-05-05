@@ -14,22 +14,17 @@ export class CredentialsDialogComponent {
 
 	protected readonly openSky = inject(OpenSkyService)
 	protected workerUrl = signal(this.openSky.workerUrl())
-	protected clientId = signal('')
-	protected clientSecret = signal('')
-	protected showSecret = signal(false)
 
 	protected save (): void {
 		const url = this.workerUrl().trim()
 		if (!url) return
-		this.openSky.saveSettings(url, this.clientId().trim(), this.clientSecret())
+		this.openSky.saveSettings(url)
 		this.closed.emit()
 	}
 
 	protected remove (): void {
 		this.openSky.clearSettings()
 		this.workerUrl.set('')
-		this.clientId.set('')
-		this.clientSecret.set('')
 		this.closed.emit()
 	}
 
