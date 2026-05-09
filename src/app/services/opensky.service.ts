@@ -54,6 +54,18 @@ export class OpenSkyService {
     }
   }
 
+  private formatHttpError (err: HttpErrorResponse): string {
+    const body = typeof err.error === 'string'
+      ? err.error.trim()
+      : err.error && typeof err.error === 'object'
+        ? JSON.stringify(err.error)
+        : ''
+    return [
+      `OpenSky Fehler: ${err.status} ${err.statusText}`,
+      body ? `Body: ${body}` : '',
+    ].filter(Boolean).join(' | ')
+  }
+
   /**
    * Build a URL targeting the Cloudflare Worker proxy.
    * OAuth2 is handled inside the Worker via Cloudflare Secrets.
@@ -134,9 +146,13 @@ export class OpenSkyService {
         {
           this.rateLimitedUntil = Date.now() + 180_000
           console.warn('OpenSky 429 – backing off for 180s')
+        } else if (err.status === 522)
+        {
+          console.error(this.formatHttpError(err))
+          console.error('Hinweis: Cloudflare kann OpenSky aktuell nicht erreichen (Upstream 522).')
         } else
         {
-          console.error(`OpenSky Fehler: ${err.status} ${err.statusText}`)
+          console.error(this.formatHttpError(err))
         }
         return of(new Map<string, FlightState>())
       })
@@ -172,6 +188,13 @@ export class OpenSkyService {
         {
           this.rateLimitedUntil = Date.now() + 180_000
           console.warn('OpenSky 429 – backing off for 180s')
+        } else if (err.status === 522)
+        {
+          console.error(this.formatHttpError(err))
+          console.error('Hinweis: Cloudflare kann OpenSky aktuell nicht erreichen (Upstream 522).')
+        } else
+        {
+          console.error(this.formatHttpError(err))
         }
         return of([])
       })
