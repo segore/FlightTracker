@@ -85,15 +85,19 @@ export default {
 
     const targetUrl = `${OPENSKY_BASE}${pathMatch[1]}${url.search}`;
 
+    /** @type {Record<string, string>} */
     const headers = {};
     const clientId = env.OPENSKY_CLIENT_ID;
     const clientSecret = env.OPENSKY_CLIENT_SECRET;
 
     if ((clientId && !clientSecret) || (!clientId && clientSecret)) {
-      return new Response('Worker misconfigured: set both OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET', {
-        status: 500,
-        headers: { 'Access-Control-Allow-Origin': '*' },
-      });
+      return new Response(
+        'Worker misconfigured: set both OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET',
+        {
+          status: 500,
+          headers: { 'Access-Control-Allow-Origin': '*' },
+        },
+      );
     }
 
     if (clientId && clientSecret) {
